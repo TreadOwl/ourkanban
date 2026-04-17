@@ -33,7 +33,7 @@ export default function Home() {
         <h1 className="text-3xl font-bold mb-8 tracking-wide text-foreground">Our Kanban</h1>
 
         {/* Start New */}
-        <div className="mb-12 border-b-2 border-b-foreground pb-8">
+        <div className="mb-8 border-b-2 border-b-foreground pb-8">
           <h2 className="text-xl font-semibold mb-4 text-foreground">Create a New Board</h2>
           <button
             onClick={handleStartNew}
@@ -65,6 +65,9 @@ export default function Home() {
             </button>
           </form>
         </div>
+      </div>
+      <div className="mt-8 text-center animate-bounce text-lg">
+        Don&apos;t forget to <span className="font-bold">&ldquo;Save Changes&rdquo;</span>
       </div>
     </div>
   )

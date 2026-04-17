@@ -140,7 +140,7 @@ export default function KanbanBoard({
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-6 py-2 font-bold bg-foreground text-background rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+            className="px-6 py-3 font-bold bg-foreground text-background rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
           </button>
