@@ -89,3 +89,9 @@ bun dev
 ```
 
 Navigate to `http://localhost:3000` to instantiate your first board!
+
+---
+
+### Note
+
+The tasks are sequenced on the basis of their creation time. Tasks created earlier will be pushed to the top of the column, while tasks created later will be pushed to the bottom of the column, even after a drag and drop operation.
