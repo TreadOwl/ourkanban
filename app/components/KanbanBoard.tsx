@@ -54,7 +54,10 @@ export default function KanbanBoard({
     const trimmed = newColumnTitle.trim()
     if (!trimmed) return
 
-    const id = trimmed.toLowerCase().replace(/\s+/g, '-')
+    const id = trimmed
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
 
     if (columns.find((c) => c.id === id)) {
       toast.error('A column with a functionally identical name already exists.')
