@@ -1,10 +1,12 @@
+'use server'
+
 import { supabase } from './supabase'
 import { customAlphabet } from 'nanoid'
 import { Column, Task } from '../types/kanban'
 
 const nanoid = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 6)
 
-export const defaultBoardData: { columns: Column[]; tasks: Task[] } = {
+const defaultBoardData: { columns: Column[]; tasks: Task[] } = {
   columns: [
     { id: 'to-do', title: 'To Do' },
     { id: 'in-progress', title: 'In Progress' },

@@ -47,9 +47,6 @@ You must connect a Supabase project. Head to [Supabase](https://supabase.com), c
 Put the following code in the Supabase SQL Editor:
 
 ```sql
--- Enable UUID generation (only needed once per database)
-create extension if not exists "pgcrypto";
-
 -- Create the boards table
 create table boards (
   id uuid primary key default gen_random_uuid(),
@@ -66,8 +63,8 @@ create index idx_boards_code on boards(code);
 Create a `.env` file at the root of your local directory:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_publishable_key
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_publishable_key
 ```
 
 ### 3. Running the Server
