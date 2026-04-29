@@ -2,8 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
-
 :root {
   --card: #ffb4d7;
   --background: #ffe19b;
@@ -96,5 +94,15 @@ body {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Diagonal heart background animation — top-right to bottom-left */
+@keyframes heart-diagonal {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-40px, 40px);
   }
 }

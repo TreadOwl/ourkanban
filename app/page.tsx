@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBoard } from './lib/board'
 import { toast } from 'sonner'
+import HeartBackground from './components/HeartBackground'
 
 export default function Home() {
   const router = useRouter()
@@ -29,8 +30,11 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-background">
-      <div className="max-w-md w-full bg-card p-8 rounded-2xl border-2 border-foreground">
-        <h1 className="text-3xl font-bold mb-8 tracking-wide text-foreground">Our Kanban</h1>
+      <HeartBackground />
+      <div className="relative max-w-md w-full bg-card p-8 rounded-2xl border-2 border-foreground">
+        <h1 className="text-3xl font-bold mb-8 tracking-wide text-foreground">
+          Our Kanban
+        </h1>
 
         {/* Start New */}
         <div className="mb-8 border-b-2 border-b-foreground pb-8">
@@ -66,7 +70,7 @@ export default function Home() {
           </form>
         </div>
       </div>
-      <div className="mt-8 text-center animate-bounce text-lg">
+      <div className="mt-8 text-center animate-bounce text-xl">
         Don&apos;t forget to <span className="font-bold">&ldquo;Save Changes&rdquo;</span>
       </div>
     </div>

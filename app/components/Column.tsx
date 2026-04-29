@@ -66,7 +66,7 @@ export default function Column({
   return (
     <div
       ref={ref}
-      className={`relative flex flex-col w-96 shrink-0 p-4 rounded-2xl transition-colors border-2 bg-background text-foreground ${
+      className={`relative flex flex-col w-96 shrink-0 p-4 rounded-2xl transition-colors border-2 bg-transparent text-foreground ${
         isDropTarget ? 'border-foreground bg-opacity-80' : 'border-transparent'
       }`}
     >

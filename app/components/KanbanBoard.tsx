@@ -8,6 +8,7 @@ import { updateBoard } from '../lib/board'
 import { toast } from 'sonner'
 import { customAlphabet } from 'nanoid'
 import Link from 'next/link'
+import HeartBackground from './HeartBackground'
 
 const nanoid = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 8)
 
@@ -122,7 +123,7 @@ export default function KanbanBoard({
   return (
     <DragDropProvider onDragEnd={handleDragEnd}>
       <div className="flex flex-col min-h-screen bg-background">
-        <div className="flex flex-col sm:flex-row items-center justify-between p-5 sm:px-12 bg-card border-b-2 border-foreground">
+        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between p-5 sm:px-12 bg-card border-b-2 border-foreground">
           <div className="flex items-center gap-4 mb-3 sm:mb-0">
             <Link href="/" className="font-bold text-foreground text-lg">
               Kanban Board
@@ -150,6 +151,7 @@ export default function KanbanBoard({
         </div>
 
         <div className="flex flex-col sm:flex-row h-full w-full overflow-y-auto sm:overflow-x-auto gap-4 p-2 sm:p-8 flex-1 items-center sm:items-start">
+          <HeartBackground />
           {columns.map((column) => (
             <Column
               key={column.id}
