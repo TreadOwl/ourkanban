@@ -1,10 +1,8 @@
 import type { Metadata } from 'next'
-import { Borel, Geist } from 'next/font/google'
+import { Borel } from 'next/font/google'
 import './globals.css'
 import { cn } from '@/app/lib/utils'
 import { Toaster } from '@/app/lib/sonner'
-
-const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
 const borel = Borel({
   variable: '--font-borel',
@@ -23,10 +21,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html
-      lang="en"
-      className={cn('h-full', 'antialiased', borel.variable, 'font-sans', geist.variable)}
-    >
+    <html lang="en" className={cn('h-full', 'antialiased', borel.variable)}>
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />

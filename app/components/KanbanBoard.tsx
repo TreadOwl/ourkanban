@@ -31,6 +31,7 @@ export default function KanbanBoard({
       id: nanoid(),
       columnId,
       title,
+      index: tasks.filter((t) => t.columnId === columnId).length,
     }
     setTasks((prev) => [...prev, newTask])
   }
@@ -156,7 +157,9 @@ export default function KanbanBoard({
             <Column
               key={column.id}
               column={column}
-              tasks={tasks.filter((task) => task.columnId === column.id)}
+              tasks={tasks
+                .filter((task) => task.columnId === column.id)
+                .sort((a, b) => a.index - b.index)}
               onAddTask={handleAddTask}
               onDeleteTask={handleDeleteTask}
               onRenameColumn={handleRenameColumn}

@@ -19,6 +19,7 @@ export default function HeartBackground({ className }: { className?: string }) {
         width={HEART_SIZE}
         height={HEART_SIZE}
         draggable={false}
+        priority
         style={{ display: 'block' }}
       />
     ))
