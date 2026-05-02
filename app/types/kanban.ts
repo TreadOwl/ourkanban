@@ -11,3 +11,12 @@ export type Task = {
   title: string
   index: number
 }
+
+export type DropPreview = {
+  activeTaskId: Id
+  sourceColumnId: Id
+  sourceIndex: number
+  targetColumnId: Id
+  insertIndex: number
+  offset: number
+}

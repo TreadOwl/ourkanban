@@ -2,13 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useDroppable } from '@dnd-kit/react'
-import { Column as ColumnType, Task } from '../types/kanban'
+import { Column as ColumnType, DropPreview, Task } from '../types/kanban'
 import TaskCard from './TaskCard'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 
 interface ColumnProps {
   column: ColumnType
   tasks: Task[]
+  dropPreview: DropPreview | null
   onAddTask: (columnId: string, title: string) => void
   onDeleteTask: (taskId: string) => void
   onRenameColumn: (columnId: string, newTitle: string) => void
@@ -18,6 +19,7 @@ interface ColumnProps {
 export default function Column({
   column,
   tasks,
+  dropPreview,
   onAddTask,
   onDeleteTask,
   onRenameColumn,
@@ -62,6 +64,29 @@ export default function Column({
   }
 
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+
+  const getTaskPreviewOffset = (task: Task, index: number) => {
+    if (!dropPreview || task.id === dropPreview.activeTaskId) return 0
+
+    const { insertIndex, offset, sourceColumnId, sourceIndex, targetColumnId } = dropPreview
+
+    if (column.id === sourceColumnId && column.id === targetColumnId) {
+      if (insertIndex < sourceIndex && index >= insertIndex && index < sourceIndex) {
+        return offset
+      }
+
+      if (insertIndex > sourceIndex && index > sourceIndex && index < insertIndex) {
+        return -offset
+      }
+
+      return 0
+    }
+
+    if (column.id === sourceColumnId && index > sourceIndex) return -offset
+    if (column.id === targetColumnId && index >= insertIndex) return offset
+
+    return 0
+  }
 
   return (
     <div
@@ -136,8 +161,14 @@ export default function Column({
       </div>
 
       <div className="flex flex-col gap-3">
-        {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} onDelete={onDeleteTask} />
+        {tasks.map((task, index) => (
+          <TaskCard
+            key={task.id}
+            task={task}
+            index={index}
+            previewOffset={getTaskPreviewOffset(task, index)}
+            onDelete={onDeleteTask}
+          />
         ))}
       </div>
 

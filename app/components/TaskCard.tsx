@@ -1,26 +1,43 @@
 'use client'
 
-import { useDraggable } from '@dnd-kit/react'
+import { useCallback } from 'react'
+import { useDraggable, useDroppable } from '@dnd-kit/react'
 import { Task } from '../types/kanban'
 import { Trash2 } from 'lucide-react'
 
 interface TaskCardProps {
   task: Task
+  index: number
   onDelete: (taskId: string) => void
+  previewOffset: number
 }
 
-export default function TaskCard({ task, onDelete }: TaskCardProps) {
-  const { ref, isDragging } = useDraggable({
+export default function TaskCard({ task, index, onDelete, previewOffset }: TaskCardProps) {
+  const { ref: draggableRef, isDragging } = useDraggable({
     id: `task-${task.id}`,
-    data: task,
+    data: { task, index },
   })
+  const { ref: droppableRef, isDropTarget } = useDroppable({
+    id: `task-${task.id}`,
+    data: { task, index },
+    disabled: isDragging,
+  })
+  const ref = useCallback(
+    (element: Element | null) => {
+      draggableRef(element)
+      droppableRef(element)
+    },
+    [draggableRef, droppableRef],
+  )
+  const draggingClassName = isDragging ? 'opacity-50' : 'opacity-100'
+  const borderClassName = isDropTarget ? 'border-foreground' : 'border-transparent'
+  const previewStyle = previewOffset ? { transform: `translateY(${previewOffset}px)` } : undefined
 
   return (
     <div
       ref={ref}
-      className={`group relative p-4 rounded-xl cursor-grab active:cursor-grabbing border-2 border-transparent hover:border-foreground transition-colors bg-card text-foreground ${
-        isDragging ? 'opacity-50' : 'opacity-100'
-      }`}
+      style={previewStyle}
+      className={`group relative p-4 rounded-xl cursor-grab active:cursor-grabbing border-2 hover:border-foreground transition-[border-color,opacity,transform] duration-150 ease-out bg-card text-foreground ${draggingClassName} ${borderClassName}`}
     >
       <button
         onClick={(e) => {

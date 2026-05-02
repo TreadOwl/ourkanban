@@ -1,9 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { DragDropProvider, DragEndEvent } from '@dnd-kit/react'
-import { Column as ColumnType, Task } from '../types/kanban'
+import { useCallback, useMemo, useState } from 'react'
+import { DragDropProvider } from '@dnd-kit/react'
+import type { Column as ColumnType, DropPreview, Task } from '../types/kanban'
 import Column from './Column'
+import KanbanDragMonitor from './KanbanDragMonitor'
+import { getDropDestination, getDropPreview, isSameDropPreview } from '../lib/kanban-dnd'
+import type { DragEndSnapshot, DragSnapshot } from '../lib/kanban-dnd'
+import { getOrderedColumnTasks, moveTaskToIndex, normalizeTaskIndexes } from '../lib/kanban-order'
 import { updateBoard } from '../lib/board'
 import { toast } from 'sonner'
 import { customAlphabet } from 'nanoid'
@@ -20,24 +24,30 @@ export default function KanbanBoard({
   initialBoardData: { columns: ColumnType[]; tasks: Task[] }
 }) {
   const [columns, setColumns] = useState<ColumnType[]>(initialBoardData.columns)
-  const [tasks, setTasks] = useState<Task[]>(initialBoardData.tasks)
+  const [tasks, setTasks] = useState<Task[]>(() => normalizeTaskIndexes(initialBoardData.tasks))
+  const [dropPreview, setDropPreview] = useState<DropPreview | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   const [isAddingColumn, setIsAddingColumn] = useState(false)
   const [newColumnTitle, setNewColumnTitle] = useState('')
+  const columnIds = useMemo(() => new Set(columns.map((column) => column.id)), [columns])
 
   const handleAddTask = (columnId: string, title: string) => {
-    const newTask: Task = {
-      id: nanoid(),
-      columnId,
-      title,
-      index: tasks.filter((t) => t.columnId === columnId).length,
-    }
-    setTasks((prev) => [...prev, newTask])
+    const newTaskId = nanoid()
+    setTasks((prev) => {
+      const newTask: Task = {
+        id: newTaskId,
+        columnId,
+        title,
+        index: getOrderedColumnTasks(prev, columnId).length,
+      }
+
+      return normalizeTaskIndexes([...prev, newTask])
+    })
   }
 
   const handleDeleteTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId))
+    setTasks((prev) => normalizeTaskIndexes(prev.filter((t) => t.id !== taskId)))
   }
 
   const handleRenameColumn = (columnId: string, newTitle: string) => {
@@ -48,7 +58,7 @@ export default function KanbanBoard({
 
   const handleDeleteColumn = (columnId: string) => {
     setColumns((prev) => prev.filter((col) => col.id !== columnId))
-    setTasks((prev) => prev.filter((task) => task.columnId !== columnId))
+    setTasks((prev) => normalizeTaskIndexes(prev.filter((task) => task.columnId !== columnId)))
   }
 
   const submitNewColumn = (e: React.FormEvent) => {
@@ -74,7 +84,9 @@ export default function KanbanBoard({
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      await updateBoard(initialCode, { columns, tasks })
+      const normalizedTasks = normalizeTaskIndexes(tasks)
+      setTasks(normalizedTasks)
+      await updateBoard(initialCode, { columns, tasks: normalizedTasks })
       toast.success('Changes saved!')
     } catch (err) {
       console.error('Save error:', err)
@@ -94,35 +106,36 @@ export default function KanbanBoard({
     toast.success('Link copied to clipboard!')
   }
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { operation, canceled } = event
-    if (canceled) return
-
-    const sourceId = operation.source?.id
-    const targetId = operation.target?.id
-
-    if (!sourceId || !targetId) return
-
-    const sourceIdStr = String(sourceId)
-    const targetIdStr = String(targetId)
-
-    // Extract the actual task ID being dragged (strip "task-" prefix)
-    const draggedTaskId = sourceIdStr.replace('task-', '')
-
-    // Because only Columns use useDroppable, target is always a column.
-    const destinationColumnId = targetIdStr.replace('column-', '')
-
-    if (destinationColumnId) {
-      setTasks((prevTasks) =>
-        prevTasks.map((task) =>
-          task.id === draggedTaskId ? { ...task, columnId: destinationColumnId } : task,
-        ),
+  const handleDragMove = useCallback(
+    (snapshot: DragSnapshot) => {
+      const nextPreview = getDropPreview(tasks, snapshot)
+      setDropPreview((currentPreview) =>
+        isSameDropPreview(currentPreview, nextPreview) ? currentPreview : nextPreview,
       )
-    }
-  }
+    },
+    [tasks],
+  )
+
+  const handleDragEnd = useCallback(
+    (snapshot: DragEndSnapshot) => {
+      setDropPreview(null)
+
+      if (snapshot.canceled) return
+
+      setTasks((prevTasks) => {
+        const destination = getDropDestination(prevTasks, snapshot, { validColumnIds: columnIds })
+
+        return destination
+          ? moveTaskToIndex(prevTasks, destination.taskId, destination.columnId, destination.index)
+          : normalizeTaskIndexes(prevTasks)
+      })
+    },
+    [columnIds],
+  )
 
   return (
-    <DragDropProvider onDragEnd={handleDragEnd}>
+    <DragDropProvider>
+      <KanbanDragMonitor onDragEnd={handleDragEnd} onDragMove={handleDragMove} />
       <div className="flex flex-col min-h-screen bg-background">
         <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between p-5 sm:px-12 bg-card border-b-2 border-foreground">
           <div className="flex items-center gap-4 mb-3 sm:mb-0">
@@ -157,9 +170,8 @@ export default function KanbanBoard({
             <Column
               key={column.id}
               column={column}
-              tasks={tasks
-                .filter((task) => task.columnId === column.id)
-                .sort((a, b) => a.index - b.index)}
+              tasks={getOrderedColumnTasks(tasks, column.id)}
+              dropPreview={dropPreview}
               onAddTask={handleAddTask}
               onDeleteTask={handleDeleteTask}
               onRenameColumn={handleRenameColumn}
@@ -167,8 +179,7 @@ export default function KanbanBoard({
             />
           ))}
 
-          {/* Add Column Wrapper */}
-          <div className="w-[348px] shrink-0">
+          <div className="w-87 shrink-0">
             {isAddingColumn ? (
               <form
                 onSubmit={submitNewColumn}
@@ -205,7 +216,7 @@ export default function KanbanBoard({
             ) : (
               <button
                 onClick={() => setIsAddingColumn(true)}
-                className="w-full h-full min-h-[122px] rounded-2xl border-2 border-dashed border-foreground bg-transparent text-foreground opacity-70 hover:opacity-100 hover:bg-card transition-all font-bold text-lg flex items-center justify-center"
+                className="w-full h-full min-h-30.5 rounded-2xl border-2 border-dashed border-foreground bg-transparent text-foreground opacity-70 hover:opacity-100 hover:bg-card transition-all font-bold text-lg flex items-center justify-center"
               >
                 + Add Column
               </button>
