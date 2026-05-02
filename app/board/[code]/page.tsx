@@ -10,10 +10,8 @@ export default async function BoardPage(props: BoardPageProps) {
   const params = await props.params
   const code = params.code
 
-  const [result] = await Promise.all([
-    getBoard(code),
-    new Promise((resolve) => setTimeout(resolve, 1000)),
-  ])
+  const result = await getBoard(code)
+
   if (!result) {
     return (
       <div className="flex flex-col h-screen items-center justify-center bg-background text-center p-8 gap-4">
