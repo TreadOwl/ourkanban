@@ -13,6 +13,9 @@ const borel = Borel({
 export const metadata: Metadata = {
   title: 'Kanban',
   description: 'Our Kanban board',
+  icons: {
+    icon: '/logo.svg',
+  },
 }
 
 export default function RootLayout({
