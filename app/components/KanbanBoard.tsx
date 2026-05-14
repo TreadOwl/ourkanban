@@ -123,21 +123,29 @@ export default function KanbanBoard({
 
   return (
     <DragDropProvider onDragEnd={handleDragEnd}>
-      <div className="flex flex-col min-h-screen bg-background">
+      <div
+        className="flex flex-col min-h-screen"
+        style={{
+          background: 'linear-gradient(to bottom, var(--background) 66%, var(--card) 100%)',
+        }}
+      >
         <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between p-5 sm:px-12 bg-card border-b-2 border-foreground">
           <div className="flex items-center gap-4 mb-3 sm:mb-0">
-            <Link href="/" className="font-bold text-foreground text-lg">
-              Kanban Board
+            <Link
+              href="/"
+              className="font-bold text-foreground text-xl mt-3 rounded-md hover:underline"
+            >
+              Our Kanban
             </Link>
             <button
               onClick={handleCopyCode}
-              className="px-3 py-1 text-sm font-semibold border-2 border-foreground text-foreground rounded-md hover:bg-foreground hover:text-background transition-colors"
+              className="px-3 py-2 text-sm font-semibold border-2 border-foreground text-foreground rounded-md hover:bg-foreground hover:text-background transition-colors"
             >
               Copy Code
             </button>
             <button
               onClick={handleCopyLink}
-              className="px-3 py-1 text-sm font-semibold border-2 border-foreground text-foreground rounded-md hover:bg-foreground hover:text-background transition-colors"
+              className="px-3 py-2 text-sm font-semibold border-2 border-foreground text-foreground rounded-md hover:bg-foreground hover:text-background transition-colors"
             >
               Copy Link
             </button>

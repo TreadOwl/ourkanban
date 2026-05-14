@@ -14,7 +14,12 @@ export default async function BoardPage(props: BoardPageProps) {
 
   if (!result) {
     return (
-      <div className="flex flex-col h-screen items-center justify-center bg-background text-center p-8 gap-4">
+      <div
+        className="flex flex-col h-screen items-center justify-center text-center p-8 gap-4"
+        style={{
+          background: 'linear-gradient(to bottom, var(--background) 66%, var(--card) 100%)',
+        }}
+      >
         <h1 className="text-3xl font-bold text-foreground">Board not found</h1>
         <p className="text-lg opacity-80 mb-4 text-foreground">Code: {code}</p>
         <Link

@@ -29,7 +29,10 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-background">
+    <div
+      className="flex flex-col items-center justify-center min-h-screen p-8 text-center"
+      style={{ background: 'linear-gradient(to bottom, var(--background) 66%, var(--card) 100%)' }}
+    >
       <HeartBackground />
       <div className="relative max-w-md w-full bg-card p-8 rounded-2xl border-2 border-foreground">
         <h1 className="text-3xl font-bold mb-8 tracking-wide text-foreground">Our Kanban</h1>

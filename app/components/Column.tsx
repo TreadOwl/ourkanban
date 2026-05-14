@@ -47,7 +47,7 @@ export default function Column({
     if (trimmed && trimmed !== column.title) {
       onRenameColumn(column.id, trimmed)
     } else {
-      setEditTitleValue(column.title) // Revert if blank
+      setEditTitleValue(column.title)
     }
     setIsEditingTitle(false)
   }
