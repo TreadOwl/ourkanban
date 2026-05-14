@@ -1,9 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { DragDropProvider, DragEndEvent } from '@dnd-kit/react'
+import { useState, useMemo } from 'react'
+import {
+  DragDropProvider,
+  DragOverlay,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverEvent,
+} from '@dnd-kit/react'
 import { Column as ColumnType, Task } from '../types/kanban'
 import Column from './Column'
+import TaskCard from './TaskCard'
 import { updateBoard } from '../lib/board'
 import { toast } from 'sonner'
 import { customAlphabet } from 'nanoid'
@@ -11,6 +18,43 @@ import Link from 'next/link'
 import HeartBackground from './HeartBackground'
 
 const nanoid = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 8)
+
+function reorderTasks(
+  tasks: Task[],
+  movingId: string,
+  targetColumnId: string,
+  insertBeforeId: string | null,
+): Task[] {
+  const movingTask = tasks.find((t) => t.id === movingId)
+  if (!movingTask) return tasks
+
+  const sourceColumnId = movingTask.columnId
+  const rest = tasks.filter((t) => t.id !== movingId)
+
+  const destSorted = rest
+    .filter((t) => t.columnId === targetColumnId)
+    .sort((a, b) => a.index - b.index)
+
+  const insertAt = insertBeforeId ? destSorted.findIndex((t) => t.id === insertBeforeId) : -1
+  destSorted.splice(insertAt === -1 ? destSorted.length : insertAt, 0, {
+    ...movingTask,
+    columnId: targetColumnId,
+  })
+
+  const reindexedDest = destSorted.map((t, i) => ({ ...t, index: i }))
+
+  const reindexedSource =
+    sourceColumnId !== targetColumnId
+      ? rest
+          .filter((t) => t.columnId === sourceColumnId)
+          .sort((a, b) => a.index - b.index)
+          .map((t, i) => ({ ...t, index: i }))
+      : []
+
+  const others = rest.filter((t) => t.columnId !== targetColumnId && t.columnId !== sourceColumnId)
+
+  return [...others, ...reindexedDest, ...reindexedSource]
+}
 
 export default function KanbanBoard({
   initialCode,
@@ -25,6 +69,9 @@ export default function KanbanBoard({
 
   const [isAddingColumn, setIsAddingColumn] = useState(false)
   const [newColumnTitle, setNewColumnTitle] = useState('')
+  const [activeTask, setActiveTask] = useState<Task | null>(null)
+  const [overTaskId, setOverTaskId] = useState<string | null>(null)
+  const [overEndColumnId, setOverEndColumnId] = useState<string | null>(null)
 
   const handleAddTask = (columnId: string, title: string) => {
     const newTask: Task = {
@@ -94,35 +141,59 @@ export default function KanbanBoard({
     toast.success('Link copied to clipboard!')
   }
 
+  const tasksByColumn = useMemo(() => {
+    const map = new Map<string, Task[]>()
+    for (const col of columns) map.set(col.id, [])
+    for (const task of tasks) map.get(task.columnId)?.push(task)
+    for (const arr of map.values()) arr.sort((a, b) => a.index - b.index)
+    return map
+  }, [tasks, columns])
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const id = String(event.operation.source?.id ?? '').replace('task-', '')
+    setActiveTask(tasks.find((t) => t.id === id) ?? null)
+  }
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const targetId = String(event.operation.target?.id ?? '')
+    const newOverTaskId = targetId.startsWith('task-') ? targetId.replace('task-', '') : null
+    const newOverEndColId = targetId.startsWith('end-') ? targetId.replace('end-', '') : null
+    if (newOverTaskId === overTaskId && newOverEndColId === overEndColumnId) return
+    setOverTaskId(newOverTaskId)
+    setOverEndColumnId(newOverEndColId)
+  }
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { operation, canceled } = event
-    if (canceled) return
+    const draggingTask = activeTask
+    setActiveTask(null)
+    setOverTaskId(null)
+    setOverEndColumnId(null)
 
-    const sourceId = operation.source?.id
-    const targetId = operation.target?.id
+    if (canceled || !draggingTask) return
 
-    if (!sourceId || !targetId) return
+    const targetId = String(operation.target?.id ?? '')
 
-    const sourceIdStr = String(sourceId)
-    const targetIdStr = String(targetId)
-
-    // Extract the actual task ID being dragged (strip "task-" prefix)
-    const draggedTaskId = sourceIdStr.replace('task-', '')
-
-    // Because only Columns use useDroppable, target is always a column.
-    const destinationColumnId = targetIdStr.replace('column-', '')
-
-    if (destinationColumnId) {
-      setTasks((prevTasks) =>
-        prevTasks.map((task) =>
-          task.id === draggedTaskId ? { ...task, columnId: destinationColumnId } : task,
-        ),
-      )
+    if (targetId.startsWith('task-')) {
+      const insertBeforeId = targetId.replace('task-', '')
+      if (insertBeforeId === draggingTask.id) return
+      setTasks((prev) => {
+        const targetTask = prev.find((t) => t.id === insertBeforeId)
+        if (!targetTask) return prev
+        return reorderTasks(prev, draggingTask.id, targetTask.columnId, insertBeforeId)
+      })
+    } else if (targetId.startsWith('end-')) {
+      const colId = targetId.replace('end-', '')
+      setTasks((prev) => reorderTasks(prev, draggingTask.id, colId, null))
     }
   }
 
   return (
-    <DragDropProvider onDragEnd={handleDragEnd}>
+    <DragDropProvider
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
       <div
         className="flex flex-col min-h-screen"
         style={{
@@ -165,9 +236,10 @@ export default function KanbanBoard({
             <Column
               key={column.id}
               column={column}
-              tasks={tasks
-                .filter((task) => task.columnId === column.id)
-                .sort((a, b) => a.index - b.index)}
+              tasks={tasksByColumn.get(column.id) ?? []}
+              activeTaskId={activeTask?.id}
+              insertBeforeTaskId={overTaskId}
+              isAppendTarget={overEndColumnId === column.id}
               onAddTask={handleAddTask}
               onDeleteTask={handleDeleteTask}
               onRenameColumn={handleRenameColumn}
@@ -221,6 +293,13 @@ export default function KanbanBoard({
           </div>
         </div>
       </div>
+      <DragOverlay>
+        {(source) => {
+          const task = source.data as Task
+          if (!task?.id) return null
+          return <TaskCard task={task} isOverlay />
+        }}
+      </DragOverlay>
     </DragDropProvider>
   )
 }

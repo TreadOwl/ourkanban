@@ -1,14 +1,27 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Fragment } from 'react'
 import { useDroppable } from '@dnd-kit/react'
 import { Column as ColumnType, Task } from '../types/kanban'
 import TaskCard from './TaskCard'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { cn } from '../lib/utils'
+
+function AppendZone({ columnId, isEmpty }: { columnId: string; isEmpty: boolean }) {
+  const { ref, isDropTarget } = useDroppable({ id: `end-${columnId}` })
+  return (
+    <div ref={ref} className={cn('mt-2 rounded-xl transition-colors', isEmpty ? 'min-h-[80px]' : 'min-h-[40px]')}>
+      {isDropTarget && !isEmpty && <div className="h-1 mt-1 rounded-full bg-foreground mx-1" />}
+    </div>
+  )
+}
 
 interface ColumnProps {
   column: ColumnType
   tasks: Task[]
+  activeTaskId?: string
+  insertBeforeTaskId?: string | null
+  isAppendTarget?: boolean
   onAddTask: (columnId: string, title: string) => void
   onDeleteTask: (taskId: string) => void
   onRenameColumn: (columnId: string, newTitle: string) => void
@@ -18,16 +31,14 @@ interface ColumnProps {
 export default function Column({
   column,
   tasks,
+  activeTaskId,
+  insertBeforeTaskId,
+  isAppendTarget,
   onAddTask,
   onDeleteTask,
   onRenameColumn,
   onDeleteColumn,
 }: ColumnProps) {
-  const { ref, isDropTarget } = useDroppable({
-    id: `column-${column.id}`,
-    data: column,
-  })
-
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [isAdding, setIsAdding] = useState(false)
 
@@ -63,12 +74,15 @@ export default function Column({
 
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
 
+  const isInsertingHere = !!insertBeforeTaskId && tasks.some((t) => t.id === insertBeforeTaskId)
+  const isOver = isInsertingHere || !!isAppendTarget
+
   return (
     <div
-      ref={ref}
-      className={`relative flex flex-col w-96 shrink-0 p-4 rounded-2xl transition-colors border-2 bg-transparent text-foreground ${
-        isDropTarget ? 'border-foreground bg-opacity-80' : 'border-transparent'
-      }`}
+      className={cn(
+        'relative flex flex-col w-96 shrink-0 p-4 rounded-2xl transition-colors border-2 bg-transparent text-foreground',
+        isOver ? 'border-foreground' : 'border-transparent',
+      )}
     >
       {/* Delete Confirmation Modal */}
       {isConfirmingDelete && (
@@ -137,13 +151,20 @@ export default function Column({
 
       <div className="flex flex-col gap-3">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} onDelete={onDeleteTask} />
+          <Fragment key={task.id}>
+            {insertBeforeTaskId === task.id && (
+              <div className="h-1 rounded-full bg-foreground mx-1" />
+            )}
+            <TaskCard task={task} onDelete={onDeleteTask} isGhost={activeTaskId === task.id} />
+          </Fragment>
         ))}
       </div>
 
+      <AppendZone columnId={column.id} isEmpty={tasks.length === 0} />
+
       {/* Add Task */}
       {isAdding ? (
-        <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2">
           <input
             type="text"
             autoFocus
@@ -175,7 +196,7 @@ export default function Column({
       ) : (
         <button
           onClick={() => setIsAdding(true)}
-          className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl border-2 border-dashed border-foreground text-foreground opacity-60 hover:opacity-100 transition-opacity"
+          className="flex items-center justify-center gap-2 w-full py-2 rounded-xl border-2 border-dashed border-foreground text-foreground opacity-60 hover:opacity-100 transition-opacity"
         >
           <Plus size={16} />
           Add Task
