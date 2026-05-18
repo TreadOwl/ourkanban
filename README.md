@@ -1,53 +1,80 @@
 # Shareable Kanban Board
 
-A lightweight, high-performance, real-time shareable Kanban board built for instant collaboration.
-
-Skip the friction of traditional login systems. Generate a secure 6-character code, share it with your team, and start moving tasks immediately. With a seamless drag-and-drop interface and explicit state-saving architecture, organizing tasks has never been more fluid.
-
-## ✨ Features
-
-- **Frictionless Board Generation:** No accounts required. Instantiate a board instantly and retrieve a unique 6-character alphanumeric ID using `nanoid`.
-- **Frictionless Sharing:** Copy your board link directly from the dashboard and drop it in Slack or Discord. Anyone with the link is instantly in!
-- **Modern Drag and Drop:** Built using the incredibly fast, modern `@dnd-kit/react` collision engine ensuring smooth kinetic pointer interactions across desktop and mobile browsers.
-- **Dynamic Structural Control:**
-  - Create and append **New Columns** dynamically matching an automatic kebab-case ID generator.
-  - Safely **Rename Columns** inline without breaking existing nested tasks logic.
-  - Delete entire columns with cascading protections that safely scrub orphaned ghost-tasks under the hood.
-- **Aesthetic UI:** Designed with pure vanilla CSS and Tailwind variables focusing on a light, easy on the eyes, clean palette. Animated with `framer-motion` for buttery smooth transitions.
+A codeshare-style kanban board — no accounts, no login. Generate a board, get a 6-character code, share it, and start organizing. Explicit save keeps you in control of when state persists.
 
 ---
 
-## 🛠️ Stack Architecture
+## Stack
 
-- **Framework:** Next.js (App Router)
-- **Styling:** Tailwind CSS + Vanilla CSS Tokens
-- **State & Physics:** React 19 + `@dnd-kit/react`
-- **Animations:** Framer Motion
-- **Database Backend:** Supabase (PostgreSQL)
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 15 (App Router, React Server Components) |
+| Language | TypeScript |
+| Runtime | Bun |
+| Styling | Tailwind CSS v4 (CSS variable tokens) |
+| Drag & Drop | `@dnd-kit/react` v0.4 |
+| Backend | Supabase (PostgreSQL + JSONB) |
+| Notifications | Sonner |
+| Icons | lucide-react |
+| ID Generation | nanoid (custom alphabet) |
 
-### 🌟 Why Supabase?
+### Why `@dnd-kit/react` and not `@dnd-kit/core`?
 
-Supabase was chosen as the backend for its simplicity and excellent **PostgreSQL JSONB** support:
+These are separate packages with incompatible APIs. `@dnd-kit/react` v0.4 is the newer, hook-based rewrite. `DragDropProvider` accepts `onDragStart`, `onDragOver`, `onDragEnd` directly as props; events expose `operation.source` and `operation.target`. The older `@dnd-kit/core` API (sensors, monitors, `DndContext`) does not apply here.
 
-- **JSONB Flexibility:** We store the entire board state (columns and tasks) directly as a single JSONB object, avoiding complex relational tables and JOINs.
-- **Fast Reads/Writes:** Saving or loading a board acts as a single, atomic database operation.
-- **Backend-as-a-Service:** Instant setup with out-of-the-box REST API bindings allows us to focus entirely on building the frontend UI and drag-and-drop mechanics.
+### Why Supabase?
+
+The entire board state — columns and tasks — is stored as a single JSONB blob in one row. Reads and writes are atomic single-row operations. No relational tables, no JOINs. Supabase gives direct PostgreSQL access with a REST API and client library that works cleanly inside Next.js Server Actions.
 
 ---
 
-## 🚀 Getting Started
+## Architecture
 
-### 1. Requirements
+```
+app/
+  page.tsx                  # Home: create board or enter code
+  board/[code]/
+    page.tsx                # Server component: fetches board, renders KanbanBoard
+    loading.tsx             # Suspense fallback
+  components/
+    KanbanBoard.tsx         # All board state + DnD logic
+    Column.tsx              # Column UI + AppendZone droppable
+    TaskCard.tsx            # Draggable + droppable task card
+    HeartBackground.tsx     # Animated background layer
+  lib/
+    board.ts                # Server actions: createBoard, getBoard, updateBoard
+    utils.ts                # cn() — clsx + tailwind-merge
+  types/
+    kanban.ts               # Column, Task types
+```
 
-Ensure you have `bun` or `npm` installed.
+**Data model:**
+- `Column { id: string, title: string }` — ID is kebab-cased from the title at creation and never changes. Renaming updates only `title`.
+- `Task { id: string, columnId: string, title: string, index: number }` — `index` controls render order within a column (0-based, always gap-free). Recomputed by `reorderTasks()` after every drag operation.
 
-### 2. Environment Variables
+**Drag and drop:**
+- Each `TaskCard` is both draggable (`useDraggable`) and droppable (`useDroppable`) with ID `task-{id}`. Dropping onto a task inserts the dragged card *before* it.
+- Each column has an `AppendZone` component below its task list, droppable with ID `end-{columnId}`. Dropping there appends to the bottom.
+- Columns themselves are never droppable — overlapping droppables cause collision jitter. The `AppendZone` is spatially isolated to avoid this.
+- A `DragOverlay` renders a floating clone of the card while dragging. The original card renders as a ghost (faded, dashed border) in its original position.
+- `reorderTasks()` is a pure function that handles same-column reorder, cross-column insert-before, and append — always producing sequential indexes.
 
-You must connect a Supabase project. Head to [Supabase](https://supabase.com), create an empty generic project, and spawn a `boards` table utilizing a `code` (String/Text) and `data` (JSONB) column mapping.
-Put the following code in the Supabase SQL Editor:
+**Persistence:** No auto-save. "Save Changes" calls `updateBoard()` which overwrites the JSONB blob atomically. The 6-character board code uses a custom nanoid alphabet (uppercase + digits, no ambiguous chars).
+
+---
+
+## Getting Started
+
+### 1. Prerequisites
+
+- [Bun](https://bun.sh) v1.0+
+- A [Supabase](https://supabase.com) project (free tier is sufficient)
+
+### 2. Database Setup
+
+In your Supabase project, open the **SQL Editor** and run:
 
 ```sql
--- Create the boards table
 create table boards (
   id uuid primary key default gen_random_uuid(),
   code text unique not null,
@@ -56,39 +83,41 @@ create table boards (
   updated_at timestamp with time zone default now()
 );
 
--- Create an index on the code column
 create index idx_boards_code on boards(code);
 ```
 
-Create a `.env` file at the root of your local directory:
+This creates the single table the app uses. The `data` column holds the entire board as a JSONB object: `{ columns: [...], tasks: [...] }`.
+
+### 3. Environment Variables
+
+Create `.env` at the repository root:
 
 ```env
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_publishable_key
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=your-anon-public-key
 ```
 
-### 3. Running the Server
+Both values are in your Supabase dashboard under **Project Settings → API**:
+- `SUPABASE_URL` → "Project URL"
+- `SUPABASE_ANON_KEY` → "anon public" key under "Project API keys"
 
-Firstly, install dependencies:
+These are the only required environment variables. The anon key is safe to expose to the browser — Supabase Row Level Security policies (if configured) control access.
+
+### 4. Install and Run
 
 ```bash
-npm install
-# or
 bun install
-```
-
-Then, run the server:
-
-```bash
-npm dev
-# or
 bun dev
 ```
 
-Navigate to `http://localhost:3000` to instantiate your first board!
+The dev server starts at `http://localhost:3000`.
 
----
+### 5. Other Commands
 
-### Note
-
-The tasks are sequenced on the basis of their creation time. Tasks created earlier will be pushed to the top of the column, while tasks created later will be pushed to the bottom of the column, even after a drag and drop operation.
+```bash
+bun build        # Production build
+bun lint         # ESLint (Next.js core-web-vitals + TypeScript)
+bun format       # Prettier (no semicolons, single quotes, 100-char width)
+bun typecheck    # tsc --noEmit
+bun clean        # rm -rf node_modules .next
+```
